@@ -10,6 +10,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"log"
 	"math"
 	"os"
 	"strconv"
@@ -26,25 +27,29 @@ func main() {
 	interval, err := strconv.Atoi(os.Args[2])
 
 	if err != nil {
-		panic(err)
+		log.Println("Invalid argument `interval`:" + err.Error())
+		os.Exit(128)
 	}
 
 	maxWidth, err := strconv.Atoi(os.Args[3])
 
 	if err != nil {
-		panic(err)
+		log.Println("Invalid argument `maxWidth`:" + err.Error())
+		os.Exit(128)
 	}
 
 	maxHeight, err := strconv.Atoi(os.Args[4])
 
 	if err != nil {
-		panic(err)
+		log.Println("Invalid argument `maxHeight`:" + err.Error())
+		os.Exit(128)
 	}
 
 	maxColumns, err := strconv.Atoi(os.Args[5])
 
 	if err != nil {
-		panic(err)
+		log.Println("Invalid argument `maxColumns`:" + err.Error())
+		os.Exit(128)
 	}
 
 	outputFileName := os.Args[6]
@@ -52,26 +57,26 @@ func main() {
 	metadata, err := GetMetadata(fileName)
 
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while reading video metadata: " + err.Error())
 	}
 
 	frameCount := metadata.Duration / interval
 	frameWidth, frameHeight, err := Calculate(metadata.Width, metadata.Height, maxWidth, maxHeight)
 
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error calculating sprite frame dimensions: " + err.Error())
 	}
 
 	spriteBuffer, err := CreateSprite(fileName, interval, frameCount, frameWidth, frameHeight, maxColumns)
 
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error calculating creating sprite: " + err.Error())
 	}
 
 	err = os.WriteFile(outputFileName, spriteBuffer.Bytes(), 0777)
 
 	if err != nil {
-		panic("Error writing file: " + err.Error())
+		log.Fatalln("Error writing file: " + err.Error())
 	}
 }
 
@@ -79,20 +84,20 @@ func GetMetadata(fileName string) (Metadata, error) {
 	probe, err := ffmpeg.Probe(fileName)
 
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, fmt.Errorf("error fetching metadata: %s", err.Error())
 	}
 
 	var metadata map[string]interface{}
 	err = json.Unmarshal([]byte(probe), &metadata)
 
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, fmt.Errorf("error parsing metadata: %s", err.Error())
 	}
 
 	duration, err := strconv.ParseFloat(metadata["format"].(map[string]interface{})["duration"].(string), 64)
 
 	if err != nil {
-		return Metadata{}, err
+		return Metadata{}, fmt.Errorf("error parsing duration: %s", err.Error())
 	}
 
 	streams := metadata["streams"].([]interface{})
@@ -135,7 +140,7 @@ func Calculate(width int, height int, maxWidth int, maxHeight int) (int, int, er
 		return width / i, height / i, nil
 	}
 
-	return 0, 0, errors.New("could not find divisor")
+	return 0, 0, errors.New("could not find divisor within maxWidth and maxHeight")
 }
 
 func CreateSprite(fileName string, interval int, frameCount int, frameWidth int, frameHeight int, maxColumn int) (*bytes.Buffer, error) {
@@ -149,14 +154,14 @@ func CreateSprite(fileName string, interval int, frameCount int, frameWidth int,
 		buffer, err := ReadFrame(fileName, i*interval, frameWidth, frameHeight)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error reading frame: %s", err.Error())
 		}
 
 		reader := bytes.NewReader(buffer.Bytes())
 		frame, err := jpeg.Decode(reader)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error decoding frame: %s", err.Error())
 		}
 
 		column := i % maxColumn
@@ -169,7 +174,7 @@ func CreateSprite(fileName string, interval int, frameCount int, frameWidth int,
 	err := jpeg.Encode(outputBuffer, img, nil)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error encoding sprite: %s", err.Error())
 	}
 
 	return outputBuffer, nil
