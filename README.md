@@ -6,6 +6,12 @@ Generate thumbnail sprites from videos using ffmpeg.
 
 - ffmpeg
 
+## Build
+
+```shell
+go build -o generator
+```
+
 ## Usage
 
 ```shell
