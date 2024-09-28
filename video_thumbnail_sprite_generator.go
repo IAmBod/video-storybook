@@ -1,4 +1,4 @@
-package main
+package video_thumbnail_sprite_generator
 
 import (
 	"bytes"
@@ -6,83 +6,13 @@ import (
 	"errors"
 	"fmt"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
-	"log"
-	"math"
-	"os"
 	"strconv"
-	"time"
 )
 
 type Metadata struct {
 	Width    int
 	Height   int
 	Duration int
-}
-
-func main() {
-	start := time.Now()
-
-	fileName := os.Args[1]
-	interval, err := strconv.Atoi(os.Args[2])
-
-	if err != nil {
-		log.Println("Invalid argument `interval`:" + err.Error())
-		os.Exit(128)
-	}
-
-	maxWidth, err := strconv.Atoi(os.Args[3])
-
-	if err != nil {
-		log.Println("Invalid argument `maxWidth`:" + err.Error())
-		os.Exit(128)
-	}
-
-	maxHeight, err := strconv.Atoi(os.Args[4])
-
-	if err != nil {
-		log.Println("Invalid argument `maxHeight`:" + err.Error())
-		os.Exit(128)
-	}
-
-	maxColumns, err := strconv.Atoi(os.Args[5])
-
-	if err != nil {
-		log.Println("Invalid argument `maxColumns`:" + err.Error())
-		os.Exit(128)
-	}
-
-	outputFileName := os.Args[6]
-
-	metadata, err := GetMetadata(fileName)
-
-	if err != nil {
-		log.Fatalln("Error while reading video metadata: " + err.Error())
-	}
-
-	frameCount := metadata.Duration / interval
-	frameWidth, frameHeight, err := Calculate(metadata.Width, metadata.Height, maxWidth, maxHeight)
-
-	if err != nil {
-		log.Fatalln("Error calculating sprite frame dimensions: " + err.Error())
-	}
-
-	gridColumns := min(frameCount, maxColumns)
-	gridRows := int(math.Ceil(float64(frameCount) / float64(maxColumns)))
-	spriteBuffer, err := ReadFrames(fileName, interval, gridColumns, gridRows, frameWidth, frameHeight)
-
-	if err != nil {
-		log.Fatalln("Error calculating creating sprite: " + err.Error())
-	}
-
-	err = os.WriteFile(outputFileName, spriteBuffer.Bytes(), 0777)
-
-	if err != nil {
-		log.Fatalln("Error writing file: " + err.Error())
-	}
-
-	elapsed := time.Since(start)
-	seconds := elapsed.Seconds()
-	fmt.Printf("Time taken: %.2f seconds\n", seconds)
 }
 
 func GetMetadata(fileName string) (Metadata, error) {
@@ -122,7 +52,7 @@ func GetMetadata(fileName string) (Metadata, error) {
 	return Metadata{}, errors.New("could not find video stream")
 }
 
-func Calculate(width int, height int, maxWidth int, maxHeight int) (int, int, error) {
+func CalculateFrameDimensions(width int, height int, maxWidth int, maxHeight int) (int, int, error) {
 	highestDivisor := min(width, height) / 2
 
 	for i := 2; i < highestDivisor; i++ {
@@ -148,7 +78,7 @@ func Calculate(width int, height int, maxWidth int, maxHeight int) (int, int, er
 	return 0, 0, errors.New("could not find divisor within maxWidth and maxHeight")
 }
 
-func ReadFrames(fileName string, interval int, columns int, rows int, frameWidth int, frameHeight int) (*bytes.Buffer, error) {
+func GenerateSprite(fileName string, interval int, columns int, rows int, frameWidth int, frameHeight int) (*bytes.Buffer, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := ffmpeg.

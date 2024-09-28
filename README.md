@@ -6,38 +6,32 @@ Generate thumbnail sprites from videos using ffmpeg.
 
 - ffmpeg
 
-## Build
-
-```shell
-go build -o generator
-```
-
-## Usage
-
-### CLI
-
-```shell
-./generator <input> <interval> <maxWidth> <maxHeight> <maxColumns> <output>
-```
-
-### Docker
-
-```shell
-docker run --rm -v <path/to/input>:/sample.mp4 -v <path/to/output/folder>:/output bod8/video-thumbnail-sprite-generator:latest /sample.mp4 <interval> <maxWidth> <maxHeight> <maxColumns> /output/<output>
-```
-
-### Options
-
-| **Name**        | **Description**                                       |
-|-----------------|-------------------------------------------------------|
-| _\<input>_      | Path to input video file                              |
-| _\<interval>_   | Frame interval in seconds                             |
-| _\<maxWidth>_   | Maximum width of a single frame in the output sprite  |
-| _\<maxHeight>_  | Maximum height of a single frame in the output sprite |
-| _\<maxColumns>_ | Maximum number of columns in output sprite            |
-| _\<output>_     | Path to output sprite file                            |
-
 # Example
+
+```go
+metadata, err := GetMetadata(fileName)
+
+if err != nil {
+    log.Fatalln("Error while reading video metadata: " + err.Error())
+}
+
+frameCount := metadata.Duration / interval
+frameWidth, frameHeight, err := CalculateFrameDimensions(metadata.Width, metadata.Height, maxWidth, maxHeight)
+
+if err != nil {
+    log.Fatalln("Error calculating sprite frame dimensions: " + err.Error())
+}
+
+gridColumns := min(frameCount, maxColumns)
+gridRows := int(math.Ceil(float64(frameCount) / float64(maxColumns)))
+spriteBuffer, err := GenerateSprite(fileName, interval, gridColumns, gridRows, frameWidth, frameHeight)
+
+if err != nil {
+    log.Fatalln("Error calculating creating sprite: " + err.Error())
+}
+
+err = os.WriteFile(outputFileName, spriteBuffer.Bytes(), 0777)
+```
 
 The sprite was generated from [some Blender sample video](https://files.vidstack.io/sprite-fight/720p.mp4).
 
