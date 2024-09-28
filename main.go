@@ -6,14 +6,11 @@ import (
 	"errors"
 	"fmt"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/jpeg"
 	"log"
 	"math"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Metadata struct {
@@ -23,6 +20,8 @@ type Metadata struct {
 }
 
 func main() {
+	start := time.Now()
+
 	fileName := os.Args[1]
 	interval, err := strconv.Atoi(os.Args[2])
 
@@ -67,7 +66,9 @@ func main() {
 		log.Fatalln("Error calculating sprite frame dimensions: " + err.Error())
 	}
 
-	spriteBuffer, err := CreateSprite(fileName, interval, frameCount, frameWidth, frameHeight, maxColumns)
+	gridColumns := min(frameCount, maxColumns)
+	gridRows := int(math.Ceil(float64(frameCount) / float64(maxColumns)))
+	spriteBuffer, err := ReadFrames(fileName, interval, gridColumns, gridRows, frameWidth, frameHeight)
 
 	if err != nil {
 		log.Fatalln("Error calculating creating sprite: " + err.Error())
@@ -78,6 +79,10 @@ func main() {
 	if err != nil {
 		log.Fatalln("Error writing file: " + err.Error())
 	}
+
+	elapsed := time.Since(start)
+	seconds := elapsed.Seconds()
+	fmt.Printf("Time taken: %.2f seconds\n", seconds)
 }
 
 func GetMetadata(fileName string) (Metadata, error) {
@@ -143,53 +148,22 @@ func Calculate(width int, height int, maxWidth int, maxHeight int) (int, int, er
 	return 0, 0, errors.New("could not find divisor within maxWidth and maxHeight")
 }
 
-func CreateSprite(fileName string, interval int, frameCount int, frameWidth int, frameHeight int, maxColumn int) (*bytes.Buffer, error) {
-	gridColumns := min(frameCount, maxColumn)
-	gridRows := int(math.Ceil(float64(frameCount) / float64(maxColumn)))
-
-	img := image.NewRGBA(image.Rect(0, 0, gridColumns*frameWidth, gridRows*frameHeight))
-	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.Black}, image.Pt(0, 0), draw.Src)
-
-	for i := 0; i < frameCount; i++ {
-		buffer, err := ReadFrame(fileName, i*interval, frameWidth, frameHeight)
-
-		if err != nil {
-			return nil, fmt.Errorf("error reading frame: %s", err.Error())
-		}
-
-		reader := bytes.NewReader(buffer.Bytes())
-		frame, err := jpeg.Decode(reader)
-
-		if err != nil {
-			return nil, fmt.Errorf("error decoding frame: %s", err.Error())
-		}
-
-		column := i % maxColumn
-		row := i / maxColumn
-
-		draw.Draw(img, img.Bounds().Add(image.Pt(column*frameWidth, row*frameHeight)), frame, image.Pt(0, 0), draw.Over)
-	}
-
-	outputBuffer := bytes.NewBuffer(nil)
-	err := jpeg.Encode(outputBuffer, img, nil)
-
-	if err != nil {
-		return nil, fmt.Errorf("error encoding sprite: %s", err.Error())
-	}
-
-	return outputBuffer, nil
-}
-
-func ReadFrame(fileName string, seconds int, frameWidth int, frameHeight int) (*bytes.Buffer, error) {
+func ReadFrames(fileName string, interval int, columns int, rows int, frameWidth int, frameHeight int) (*bytes.Buffer, error) {
 	buffer := bytes.NewBuffer(nil)
 
 	err := ffmpeg.
-		Input(fileName, ffmpeg.KwArgs{"ss": seconds}).
+		Input(fileName).
+		Filter("fps", ffmpeg.Args{
+			fmt.Sprintf("1/%d", interval),
+		}).
+		Filter("scale", ffmpeg.Args{strconv.Itoa(frameWidth), strconv.Itoa(frameHeight)}).
+		Filter("tile", ffmpeg.Args{}, ffmpeg.KwArgs{
+			"layout": fmt.Sprintf("%dx%d", columns, rows),
+		}).
 		Output("pipe:", ffmpeg.KwArgs{
-			"format":  "image2",
-			"s":       fmt.Sprintf("%dx%d", frameWidth, frameHeight),
-			"vcodec":  "mjpeg",
-			"vframes": 1,
+			"format":   "image2",
+			"qscale:v": 2,
+			"vframes":  1,
 		}).
 		WithOutput(buffer).
 		Silent(false).
