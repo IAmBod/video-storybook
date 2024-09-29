@@ -1,4 +1,4 @@
-module github.com/IAmBod/video-thumbnail-sprite-generator
+module github.com/IAmBod/video-storybook
 
 go 1.22
 

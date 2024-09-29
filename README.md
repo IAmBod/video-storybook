@@ -1,6 +1,6 @@
-# Video Thumbnail Sprite Generator
+# Video Storybook
 
-Generate thumbnail sprites from videos using ffmpeg.
+Video storybook (thumbnail sprite) generator library using ffmpeg.
 
 ## Requirements
 

@@ -1,4 +1,4 @@
-package video_thumbnail_sprite_generator
+package video_storybook
 
 import (
 	"bytes"
