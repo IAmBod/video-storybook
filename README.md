@@ -6,7 +6,7 @@ Video storybook (thumbnail sprite) generator library using ffmpeg.
 
 - ffmpeg
 
-# Example
+## Example
 
 ```go
 fileName := "./sample.mp4"
